@@ -1,0 +1,27 @@
+# User environment & secrets
+.env
+*.env
+.env.*
+
+# .NET Build results
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Test results & temp
+TestResults/
+[Tt]est[Rr]esults/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
