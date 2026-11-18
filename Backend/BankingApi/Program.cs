@@ -1,4 +1,5 @@
 using System.Text;
+using BankingApi.Accounts;
 using BankingApi.Auth;
 using BankingApi.Data;
 using BankingApi.HealthChecks;
@@ -80,5 +81,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapAuthEndpoints();
+app.MapAccountsEndpoints();
 
 app.Run();
