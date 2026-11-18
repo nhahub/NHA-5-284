@@ -25,3 +25,6 @@ TestResults/
 # OS files
 .DS_Store
 Thumbs.db
+
+# AI rules 
+GEMINI.md
