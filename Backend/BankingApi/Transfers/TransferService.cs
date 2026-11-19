@@ -1,6 +1,5 @@
 using BankingApi.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using System.Data;
 
@@ -11,12 +10,10 @@ public class TransferService
     private const int MaxAttempts = 3;
 
     private readonly AppDbContext _db;
-    private readonly ILogger<TransferService> _logger;
 
-    public TransferService(AppDbContext db, ILogger<TransferService> logger)
+    public TransferService(AppDbContext db)
     {
         _db = db;
-        _logger = logger;
     }
 
     public async Task<TransferResult> ExecuteTransferAsync(
@@ -40,11 +37,6 @@ public class TransferService
             }
             catch (Exception ex) when (IsRetryableFailure(ex))
             {
-                // The transaction was already rolled back by Dispose in TryTransferOnceAsync.
-                _logger.LogWarning(ex,
-                    "Transfer {From} -> {To} conflicted (attempt {Attempt}/{Max})",
-                    fromAccountId, toAccountId, attempt, MaxAttempts);
-
                 // Discard stale tracked entities before retrying.
                 _db.ChangeTracker.Clear();
 
@@ -58,19 +50,14 @@ public class TransferService
             }
         }
 
-        // Unreachable, but required by the compiler.
         return new TransferResult(false, null, "Concurrent transfer conflict, please retry", 409);
     }
 
     private async Task<TransferResult> TryTransferOnceAsync(
         Guid userId, Guid fromAccountId, Guid toAccountId, decimal amount)
     {
-        // Disposing an uncommitted transaction rolls it back automatically,
-        // so early returns and exceptions need no manual RollbackAsync.
         await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-        // Lock both rows in one query, ordered by Id, so concurrent A->B and B->A
-        // transfers always acquire locks in the same order (no deadlock).
         var ids = new[] { fromAccountId, toAccountId };
         var accounts = await _db.Accounts
             .FromSqlRaw("SELECT * FROM \"Accounts\" WHERE \"Id\" = ANY({0}) ORDER BY \"Id\" FOR UPDATE", ids)
@@ -119,7 +106,6 @@ public class TransferService
         return new TransferResult(true, txn.Id, null, 200);
     }
 
-    // 40001 = serialization_failure, 40P01 = deadlock_detected
     private static bool IsRetryableFailure(Exception ex)
     {
         if (ex is DbUpdateConcurrencyException)
