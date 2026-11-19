@@ -1,5 +1,6 @@
 using BankingApi.Accounts;
 using BankingApi.Auth;
+using BankingApi.Transfers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankingApi.Data;
@@ -12,6 +13,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +41,24 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(a => a.OwnerId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Amount).HasColumnType("decimal(18,4)").IsRequired();
+            entity.Property(t => t.Status).IsRequired().HasMaxLength(50);
+            entity.Property(t => t.CreatedAt).IsRequired();
+            entity.HasIndex(t => t.FromAccountId);
+            entity.HasIndex(t => t.ToAccountId);
+            entity.HasOne<Account>()
+                .WithMany()
+                .HasForeignKey(t => t.FromAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Account>()
+                .WithMany()
+                .HasForeignKey(t => t.ToAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

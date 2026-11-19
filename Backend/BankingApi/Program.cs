@@ -3,6 +3,7 @@ using BankingApi.Accounts;
 using BankingApi.Auth;
 using BankingApi.Data;
 using BankingApi.HealthChecks;
+using BankingApi.Transfers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,7 @@ builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<TransferService>();
 
 var app = builder.Build();
 
@@ -82,5 +84,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 
 app.MapAuthEndpoints();
 app.MapAccountsEndpoints();
+app.MapTransfersEndpoints();
 
 app.Run();
