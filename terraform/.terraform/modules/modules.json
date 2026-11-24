@@ -1,1 +1,1 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"controller","Source":"./modules/ec2","Dir":"modules/ec2"},{"Key":"ec2","Source":"./modules/ec2","Dir":"modules/ec2"},{"Key":"worker","Source":"./modules/ec2","Dir":"modules/ec2"}]}
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"controller","Source":"./modules/ec2","Dir":"modules/ec2"},{"Key":"ec2","Source":"./modules/ec2","Dir":"modules/ec2"},{"Key":"jenkins","Source":"./modules/ec2","Dir":"modules/ec2"},{"Key":"worker","Source":"./modules/ec2","Dir":"modules/ec2"}]}

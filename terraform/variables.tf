@@ -41,6 +41,12 @@ variable "k3s_controller_instance_type" {
   default     = "t3.small"
 }
 
+variable "jenkins_instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t3.small"
+}
+
 variable "key_name" {
   description = "Name of the SSH key pair (optional)"
   type        = string
@@ -56,15 +62,19 @@ variable "allowed_ssh_cidr" {
 variable "controller_script" {
   description = "controller_script user data file name"
   type        = string
-  default = ""
+  default     = ""
 }
 
 variable "worker_script" {
   description = "controller_script user data file name"
   type        = string
-  default = ""
+  default     = ""
 }
 
-
+variable "jenkins_script" {
+  description = "jenkins_script user data file name"
+  type        = string
+  default     = ""
+}
 
 
