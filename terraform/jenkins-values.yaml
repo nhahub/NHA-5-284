@@ -1,0 +1,27 @@
+# Jenkins Helm Values for K3s Deployment
+controller:
+  adminUser: "admin"
+  adminPassword: "AdminPassword123!"
+
+  serviceType: "NodePort"
+  nodePort: 32000
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
+
+  # Pre-installed plugins for Pipelines and Git
+  installPlugins:
+    - "kubernetes:latest"
+    - "workflow-aggregator:latest"
+    - "git:latest"
+    - "configuration-as-code:latest"
+
+persistence:
+  enabled: true
+  storageClass: "local-path"
+  size: "8Gi"
