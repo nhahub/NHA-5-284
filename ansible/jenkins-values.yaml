@@ -1,0 +1,37 @@
+controller:
+  serviceType: ClusterIP
+  jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
+  agentListenerPort: 50000
+  javaOpts: "-Djava.awt.headless=true -Xms512m -Xmx1280m"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1792Mi"
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - credentials-binding
+    - configuration-as-code
+
+agent:
+  enabled: true
+  namespace: "jenkins-agents"
+  podTemplates:
+    dotnet: |
+      - name: dotnet
+        label: dotnet
+        defaultContainer: dotnet
+        containers:
+          - name: dotnet
+            image: mcr.microsoft.com/dotnet/sdk:10.0
+            command: sleep
+            args: 99d
+            alwaysPullImage: false
+
+persistence:
+  enabled: true
+  size: "8Gi"

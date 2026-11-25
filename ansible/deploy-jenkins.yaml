@@ -1,0 +1,142 @@
+---
+- name: Automatically retrieve Controller Public IP from Terraform
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Fetch controller_public_ip from Terraform outputs
+      ansible.builtin.command:
+        cmd: terraform -chdir="{{ playbook_dir }}/../terraform" output -raw controller_public_ip
+      register: tf_controller_ip
+      changed_when: false
+
+    - name: Assert controller IP is not empty
+      ansible.builtin.assert:
+        that:
+          - tf_controller_ip.stdout | trim | length > 0
+        fail_msg: "Terraform output 'controller_public_ip' is empty. Please run 'terraform apply' in terraform/ first."
+
+    - name: Update inventory.ini with discovered controller public IP
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/inventory.ini"
+        content: |
+          [k3s_controller]
+          controller ansible_host={{ tf_controller_ip.stdout | trim }} ansible_user=ec2-user ansible_ssh_private_key_file=../terraform/labsuser.pem
+        mode: "0644"
+
+    - name: Dynamically register controller in k3s_controller group
+      ansible.builtin.add_host:
+        name: controller
+        groups: k3s_controller
+        ansible_host: "{{ tf_controller_ip.stdout | trim }}"
+        ansible_user: ec2-user
+        ansible_ssh_private_key_file: "../terraform/labsuser.pem"
+
+- name: Deploy Jenkins via Helm on K3s Controller
+  hosts: k3s_controller
+  become: true
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+  vars:
+    ghcr_username: "{{ lookup('env', 'GHCR_USERNAME') }}"
+    ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
+
+  tasks:
+    - name: Wait for SSH to become ready on controller
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 180
+    - name: Verify GHCR credentials are exported in local environment
+      ansible.builtin.assert:
+        that:
+          - ghcr_username | length > 0
+          - ghcr_token | length > 0
+        fail_msg: "Run: export GHCR_USERNAME=<user> GHCR_TOKEN=<pat> before executing ansible-playbook."
+
+    - name: Wait for K3s API to be ready
+      ansible.builtin.command: kubectl get nodes
+      register: k3s_nodes
+      retries: 10
+      delay: 5
+      until: k3s_nodes.rc == 0
+      changed_when: false
+
+    - name: Create jenkins and jenkins-agents namespaces
+      ansible.builtin.shell: |
+        kubectl create namespace jenkins --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace jenkins-agents --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create or update GHCR push secret in jenkins-agents namespace
+      ansible.builtin.shell: |
+        kubectl create secret docker-registry ghcr-push-secret \
+          --namespace jenkins-agents \
+          --docker-server=ghcr.io \
+          --docker-username="{{ ghcr_username }}" \
+          --docker-password="{{ ghcr_token }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+      no_log: true
+
+    - name: Attach GHCR secret to default ServiceAccount in jenkins-agents
+      ansible.builtin.shell: |
+        kubectl patch serviceaccount default -n jenkins-agents \
+          -p '{"imagePullSecrets": [{"name": "ghcr-push-secret"}]}'
+
+    - name: Grant Jenkins ServiceAccount RBAC permissions in jenkins-agents
+      ansible.builtin.shell: |
+        cat <<EOF | kubectl apply -f -
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: Role
+        metadata:
+          name: jenkins-pod-manager
+          namespace: jenkins-agents
+        rules:
+          - apiGroups: [""]
+            resources: ["pods", "pods/exec", "pods/log", "persistentvolumeclaims", "secrets", "events"]
+            verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+        ---
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: jenkins-pod-manager-binding
+          namespace: jenkins-agents
+        subjects:
+          - kind: ServiceAccount
+            name: jenkins
+            namespace: jenkins
+        roleRef:
+          kind: Role
+          name: jenkins-pod-manager
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+
+    - name: Copy Jenkins Helm values to controller
+      ansible.builtin.copy:
+        src: jenkins-values.yaml
+        dest: /tmp/jenkins-values.yaml
+        mode: "0600"
+
+    - name: Add jenkinsci Helm repository and deploy Jenkins
+      ansible.builtin.shell: |
+        helm repo add jenkinsci https://charts.jenkins.io --force-update
+        helm repo update
+        helm upgrade --install jenkins jenkinsci/jenkins \
+          --namespace jenkins \
+          --values /tmp/jenkins-values.yaml \
+          --wait --timeout 5m
+
+    - name: Retrieve Jenkins initial admin password
+      ansible.builtin.shell: |
+        kubectl get secret --namespace jenkins jenkins \
+          -o jsonpath="{.data.jenkins-admin-password}" | base64 --decode
+      register: jenkins_pass
+
+    - name: Display Jenkins access summary
+      ansible.builtin.debug:
+        msg:
+          - "Jenkins deployed successfully in namespace 'jenkins'."
+          - "Initial admin username: admin"
+          - "Initial admin password: {{ jenkins_pass.stdout }}"
+          - "Port-forward UI: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml port-forward -n jenkins svc/jenkins 8080:8080"
