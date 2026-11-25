@@ -15,6 +15,20 @@ spec:
     - sleep
     args:
     - 99d
+    env:
+    - name: DOCKER_HOST
+      value: "tcp://localhost:2375"
+    - name: TESTCONTAINERS_HOST_OVERRIDE
+      value: "localhost"
+    - name: TESTCONTAINERS_RYUK_DISABLED
+      value: "true"
+  - name: dind
+    image: docker:27-dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
     command:
@@ -63,7 +77,12 @@ spec:
             steps {
                 container('dotnet') {
                     echo "=== Running Integration & Unit Tests ==="
-                    sh 'dotnet test Backend/BankingApi.sln --no-build -c Release --nologo -v quiet --logger "console;verbosity=minimal"'
+                    sh '''
+                    # Wait for Docker daemon (dind) to be ready on localhost:2375
+                    echo "Waiting for Docker daemon to become ready..."
+                    timeout 45 bash -c 'until (echo > /dev/tcp/localhost/2375) 2>/dev/null; do sleep 1; done' || true
+                    dotnet test Backend/BankingApi.sln --no-build -c Release --nologo -v quiet --logger "console;verbosity=minimal"
+                    '''
                 }
             }
         }
