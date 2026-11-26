@@ -4,7 +4,7 @@ set -euo pipefail
 export K3S_TOKEN='${k3s_token}'
 
 # 2. Install K3s server
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --token ${k3s_token}" sh -
 
 # 3. Wait for K3s API to become ready
 until kubectl get nodes 2>/dev/null; do

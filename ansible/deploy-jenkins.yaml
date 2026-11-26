@@ -40,9 +40,11 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+  vars_files:
+    - secrets.yml 
   vars:
-    ghcr_username: "{{ lookup('env', 'GHCR_USERNAME') }}"
-    ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
+    ghcr_username: "{{ vault_ghcr_username}}"
+    ghcr_token: "{{ vault_ghcr_token }}"
 
   tasks:
     - name: Wait for SSH to become ready on controller
@@ -125,7 +127,7 @@
         helm upgrade --install jenkins jenkinsci/jenkins \
           --namespace jenkins \
           --values /tmp/jenkins-values.yaml \
-          --wait --timeout 5m
+          --wait --timeout 7m
 
     - name: Retrieve Jenkins initial admin password
       ansible.builtin.shell: |

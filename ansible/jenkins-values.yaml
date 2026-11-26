@@ -24,7 +24,6 @@ agent:
     dotnet: |
       - name: dotnet
         label: dotnet
-        defaultContainer: dotnet
         containers:
           - name: dotnet
             image: mcr.microsoft.com/dotnet/sdk:10.0
