@@ -58,7 +58,7 @@ spec:
         // NOTE: GitHub Container Registry requires image names to be lowercase
         IMAGE_NAME = 'banking-api'
         // Replace with your GitHub username or organization (lowercase)
-        GHCR_OWNER = 'nhahub'
+        GHCR_OWNER = 'motamerf'
         IMAGE_REPO = "ghcr.io/${GHCR_OWNER}/${IMAGE_NAME}"
     }
 
