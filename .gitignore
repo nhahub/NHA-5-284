@@ -2,6 +2,7 @@
 .env
 *.env
 .env.*
+*.pem
 
 # .NET Build results
 bin/
